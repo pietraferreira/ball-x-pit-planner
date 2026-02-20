@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+const { useState, useEffect, useMemo } = React;
 import { 
     sTierItems, charactersDB, ballsDB, passivesDB, 
     characterDuos, metaBuilds, evolutions, passiveEvolutions 
