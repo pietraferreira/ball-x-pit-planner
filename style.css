@@ -1,0 +1,61 @@
+:root {
+    --bg-dark: #050505;
+    --panel-bg: #111116;
+    --neon-cyan: #22d3ee;
+    --neon-purple: #c084fc;
+    --neon-green: #4ade80;
+    --neon-gold: #facc15;
+    --neon-red: #f87171;
+    --border-dim: #1f2937;
+}
+
+body { 
+    background-color: var(--bg-dark); 
+    color: #e2e8f0; 
+    font-family: 'VT323', monospace; 
+    font-size: 18px;
+    overscroll-behavior-y: none;
+}
+
+/* Import Font */
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+.game-panel {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-dim);
+    box-shadow: 0 0 0 1px rgba(0,0,0,1), 4px 4px 0 0 #000;
+}
+
+.crt-scanline {
+    background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0,0,0,0.1) 50%,
+        rgba(0,0,0,0.1)
+    );
+    background-size: 100% 4px;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 99;
+    opacity: 0.3;
+}
+
+.glow-text-cyan { text-shadow: 0 0 5px rgba(34, 211, 238, 0.6); }
+.glow-text-gold { text-shadow: 0 0 5px rgba(250, 204, 21, 0.6); }
+.glow-text-purple { text-shadow: 0 0 5px rgba(192, 132, 252, 0.6); }
+
+.reco-pulse { animation: pulse-border 2s infinite; }
+
+@keyframes pulse-border {
+    0% { border-color: var(--neon-gold); box-shadow: 0 0 5px var(--neon-gold); }
+    50% { border-color: #713f12; box-shadow: 0 0 2px var(--neon-gold); }
+    100% { border-color: var(--neon-gold); box-shadow: 0 0 5px var(--neon-gold); }
+}
+
+button { touch-action: manipulation; }
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #000; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
