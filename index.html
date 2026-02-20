@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ball x Pit | Pocket Planner v5</title>
+    <title>Ball x Pit | Pocket Planner v5.1</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -72,85 +72,8 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- CHARACTER DUOS (From Reddit Analysis) ---
-        const characterDuos = [
-            {
-                name: "The Cluster Bomb",
-                tag: "SCREEN CLEAR",
-                chars: ["The Juggler", "The Spendthrift"],
-                desc: "Throws all balls as one giant cluster (Juggler) that detonates on impact (Spendthrift). Massive burst damage."
-            },
-            {
-                name: "The Backline Shotgun",
-                tag: "AFK FARM",
-                chars: ["The Shade", "The Spendthrift"],
-                desc: "Shots originate from behind enemies in a wide arc. Aim straight down and strafe. Melts waves instantly."
-            },
-            {
-                name: "Infinite Swarm",
-                tag: "LAG MACHINE",
-                chars: ["The Cohabitants", "The Flagellant"],
-                desc: "Maximum baby ball generation. Flagellant keeps balls in play, Cohabitants doubles them. Frame-drop levels of chaos."
-            },
-            {
-                name: "Easy Mode",
-                tag: "BOUNCY",
-                chars: ["The Physicist", "The Repentant"],
-                desc: "Physicist pulls balls down, Repentant adds damage per bounce. Extremely consistent and safe."
-            },
-            {
-                name: "The Hemorrhage",
-                tag: "BOSS KILLER",
-                chars: ["The Warrior", "The Shieldbearer"],
-                desc: "Starts with Bleed + Iron to rush Hemorrhage. Percentage-based damage shreds high HP bosses."
-            },
-            {
-                name: "Piercing Boomerang",
-                tag: "TECH",
-                chars: ["The Repentant", "The Embedded"],
-                desc: "Balls pierce enemies (Embedded) and return from back wall dealing dmg (Repentant). Great for clearing lines."
-            },
-            {
-                name: "Earth Shaker",
-                tag: "AOE",
-                chars: ["The Juggler", "The Makeshift Sisyphus"],
-                desc: "Lob explosive Earthquake balls directly into the center of enemy clusters. Bypasses Sisyphus's downside."
-            }
-        ];
-
-        // --- META ITEM BUILDS ---
-        const metaBuilds = [
-            { 
-                name: "Black Hole Sun", 
-                tag: "GOD TIER",
-                desc: "Sun makes Black Hole apply to EVERYTHING on screen. Instant wipe for non-bosses.",
-                core: ["Black Hole", "Sun"], 
-                support: ["Cornucopia", "Ethereal Cloak"] 
-            },
-            { 
-                name: "Bleed Flash", 
-                tag: "BOSS MELTER",
-                desc: "Hemorrhage cuts % Current HP. Flash spreads it instantly to bosses.", 
-                core: ["Hemorrhage", "Flash"], 
-                support: ["Gemspring", "Silver Bullet"] 
-            },
-            { 
-                name: "Seeker Missiles", 
-                tag: "SYNERGY",
-                desc: "Mosquito Swarm x Nuclear Bomb turns nukes into homing missiles.", 
-                core: ["Mosquito Swarm", "Nuclear Bomb"], 
-                support: ["Maggot", "Midnight Oil"] 
-            },
-            { 
-                name: "Immortal Turtle", 
-                tag: "SURVIVAL",
-                desc: "Succubus + Spider Queen generates infinite weak balls. Charmed enemies heal you forever.", 
-                core: ["Succubus", "Spider Queen"], 
-                support: ["Soul Reaver", "Phantom Regalia"] 
-            }
-        ];
-
-        // --- DATA LIBRARIES ---
+        // --- GLOBAL DATA ---
+        
         const charactersDB = [
             { name: "The Warrior", ball: "Bleed", img: "https://ballxpit.wiki.gg/images/The_Warrior.png", desc: "No special quirks." },
             { name: "The Itchy Finger", ball: "Burn", img: "https://ballxpit.wiki.gg/images/The_Itchy_Finger.png", desc: "Shoots twice as fast, scattered aim." },
@@ -404,6 +327,12 @@
             const [selectedChars, setSelectedChars] = useState([]); 
             const [inventory, setInventory] = useState([]); 
             const [searchTerm, setSearchTerm] = useState("");
+            
+            // Tier list data derived from community feedback
+            const sTierItems = [
+                "Sun", "Magma", "Hemorrhage", "Overgrowth", "Maggot", 
+                "Flash", "Flicker", "Black Hole", "Glacier", "Cornucopia"
+            ];
 
             useEffect(() => {
                 let startBalls = selectedChars.map(c => c.ball).filter(Boolean);
