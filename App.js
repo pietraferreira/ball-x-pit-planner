@@ -1,8 +1,9 @@
-const { useState, useEffect, useMemo } = React;
 import { 
     sTierItems, charactersDB, ballsDB, passivesDB, 
     characterDuos, metaBuilds, evolutions, passiveEvolutions 
 } from './data.js';
+
+const { useState, useEffect, useMemo } = React;
 
 // Helper to get image
 const getImg = (name, list) => {
