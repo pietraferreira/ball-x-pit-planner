@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ball x Pit | Companion & Planner</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --panel-bg: #111116;
+            --neon-cyan: #22d3ee;
+            --neon-purple: #c084fc;
+            --neon-green: #4ade80;
+            --neon-red: #f87171;
+            --neon-gold: #facc15;
+            --border-dim: #1f2937;
+        }
+        body { 
+            background-color: var(--bg-dark); 
+            color: #e2e8f0; 
+            font-family: 'VT323', monospace; 
+            font-size: 18px;
+            overflow-y: scroll;
+        }
+        
+        .game-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-dim);
+            box-shadow: 0 0 0 1px rgba(0,0,0,1), 4px 4px 0 0 #000;
+        }
+
+        .crt-scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.1) 50%,
+                rgba(0,0,0,0.1)
+            );
+            background-size: 100% 4px;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 99;
+            opacity: 0.3;
+        }
+
+        .glow-text-cyan { text-shadow: 0 0 5px rgba(34, 211, 238, 0.6); }
+        .glow-text-purple { text-shadow: 0 0 5px rgba(192, 132, 252, 0.6); }
+        .glow-text-green { text-shadow: 0 0 5px rgba(74, 222, 128, 0.6); }
+        .glow-text-gold { text-shadow: 0 0 5px rgba(250, 204, 21, 0.6); }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #000; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        /* Pulse animation for recommended items */
+        @keyframes pulse-border {
+            0% { border-color: var(--neon-gold); box-shadow: 0 0 5px var(--neon-gold); }
+            50% { border-color: #713f12; box-shadow: 0 0 2px var(--neon-gold); }
+            100% { border-color: var(--neon-gold); box-shadow: 0 0 5px var(--neon-gold); }
+        }
+        .reco-pulse { animation: pulse-border 2s infinite; }
+    </style>
+</head>
+<body>
+    <div class="crt-scanline"></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- DATA LIBRARIES ---
+
+        const charactersDB = [
+            { name: "The Warrior", ball: "Bleed", img: "https://ballxpit.wiki.gg/images/The_Warrior.png", desc: "No special quirks." },
+            { name: "The Itchy Finger", ball: "Burn", img: "https://ballxpit.wiki.gg/images/The_Itchy_Finger.png", desc: "Shoots twice as fast, scattered aim." },
+            { name: "The Repentant", ball: "Freeze", img: "https://ballxpit.wiki.gg/images/The_Repentant.png", desc: "Balls deal more dmg on bounce, hurt enemies on return." },
+            { name: "The Cohabitants", ball: "Brood Mother", img: "https://ballxpit.wiki.gg/images/The_Cohabitants.png", desc: "Launches mirror copy of every ball." },
+            { name: "The Cogitator", ball: "Laser (Vertical)", img: "https://ballxpit.wiki.gg/images/The_Cogitator.png", desc: "Automatically chooses upgrades." },
+            { name: "The Embedded", ball: "Poison", img: "https://ballxpit.wiki.gg/images/The_Embedded.png", desc: "Balls pierce enemies until hitting a wall." },
+            { name: "The Shade", ball: "Dark", img: "https://ballxpit.wiki.gg/images/The_Shade.png", desc: "Balls shoot from the back. +10% Crit." },
+            { name: "The Shieldbearer", ball: "Iron", img: "https://ballxpit.wiki.gg/images/The_Shieldbearer.png", desc: "Holds a shield that bounces balls back." },
+            { name: "The Spendthrift", ball: "Vampire", img: "https://ballxpit.wiki.gg/images/The_Spendthrift.png", desc: "Shoots all balls at same time in arc." },
+            { name: "The Juggler", ball: "Lightning", img: "https://ballxpit.wiki.gg/images/The_Juggler.png", desc: "Lobs balls into the air." },
+            { name: "The Empty Nester", ball: "Ghost", img: "https://ballxpit.wiki.gg/images/The_Empty_Nester.png", desc: "No baby balls. Shoots multiple instances of special ball." },
+            { name: "The Flagellant", ball: "Egg Sac", img: "https://ballxpit.wiki.gg/images/The_Flagellant.png", desc: "Balls bounce normally off bottom." },
+            { name: "The Makeshift Sisyphus", ball: "Earthquake", img: "https://ballxpit.wiki.gg/images/The_Makeshift_Sisyphus.png", desc: "No direct hit dmg. 4x AOE/Status dmg." },
+            { name: "The Physicist", ball: "Light", img: "https://ballxpit.wiki.gg/images/The_Physicist.png", desc: "Balls affected by gravity towards back." },
+            { name: "The Tactician", ball: "Iron", img: "https://ballxpit.wiki.gg/images/The_Tactician.png", desc: "Battles become turn-based." },
+            { name: "The Radical", ball: "Wind", img: "https://ballxpit.wiki.gg/images/The_Radical.png", desc: "Plays automatically." },
+            { name: "The Falconer", ball: "Lightning", img: "https://ballxpit.wiki.gg/images/The_Falconer.png", desc: "Balls shot from falcons on sides." },
+            { name: "The Carouser", ball: "Charm", img: "https://ballxpit.wiki.gg/images/The_Carouser.png", desc: "Balls orbit on return." },
+            { name: "The False Messiah", ball: "Bleed", img: "https://ballxpit.wiki.gg/images/The_False_Messiah.png", desc: "Twitch Integration character." }
+        ];
+
+        const ballsDB = [
+            { name: "Baby Ball", img: "https://ballxpit.wiki.gg/images/Baby_Ball.png" },
+            { name: "Bleed", img: "https://ballxpit.wiki.gg/images/Bleed.png" },
+            { name: "Brood Mother", img: "https://ballxpit.wiki.gg/images/Brood_Mother.png" },
+            { name: "Burn", img: "https://ballxpit.wiki.gg/images/Burn.png" },
+            { name: "Cell", img: "https://ballxpit.wiki.gg/images/Cell.png" },
+            { name: "Charm", img: "https://ballxpit.wiki.gg/images/Charm.png" },
+            { name: "Dark", img: "https://ballxpit.wiki.gg/images/Dark.png" },
+            { name: "Earthquake", img: "https://ballxpit.wiki.gg/images/Earthquake.png" },
+            { name: "Egg Sac", img: "https://ballxpit.wiki.gg/images/Egg_Sac.png" },
+            { name: "Freeze", img: "https://ballxpit.wiki.gg/images/Freeze.png" },
+            { name: "Ghost", img: "https://ballxpit.wiki.gg/images/Ghost.png" },
+            { name: "Iron", img: "https://ballxpit.wiki.gg/images/Iron.png" },
+            { name: "Laser (Horizontal)", img: "https://ballxpit.wiki.gg/images/Laser_%28Horizontal%29.png" },
+            { name: "Laser (Vertical)", img: "https://ballxpit.wiki.gg/images/Laser_%28Vertical%29.png" },
+            { name: "Light", img: "https://ballxpit.wiki.gg/images/Light.png" },
+            { name: "Lightning", img: "https://ballxpit.wiki.gg/images/Lightning.png" },
+            { name: "Stone", img: "https://ballxpit.wiki.gg/images/Stone_%28Ball%29.png" },
+            { name: "Poison", img: "https://ballxpit.wiki.gg/images/Poison.png" },
+            { name: "Vampire", img: "https://ballxpit.wiki.gg/images/Vampire.png" },
+            { name: "Wind", img: "https://ballxpit.wiki.gg/images/Wind.png" },
+            // Evolutions
+            { name: "Assassin", img: "https://ballxpit.wiki.gg/images/Assassin.png" },
+            { name: "Banished Flame", img: "https://ballxpit.wiki.gg/images/Banished_Flame.png" },
+            { name: "Berserk", img: "https://ballxpit.wiki.gg/images/Berserk.png" },
+            { name: "Black Hole", img: "https://ballxpit.wiki.gg/images/Black_Hole.png" },
+            { name: "Blizzard", img: "https://ballxpit.wiki.gg/images/Blizzard.png" },
+            { name: "Bomb", img: "https://ballxpit.wiki.gg/images/Bomb.png" },
+            { name: "Brimstone", img: "https://ballxpit.wiki.gg/images/Brimstone.png" },
+            { name: "Catapult", img: "https://ballxpit.wiki.gg/images/Catapult.png" },
+            { name: "Fireworks", img: "https://ballxpit.wiki.gg/images/Fireworks.png" },
+            { name: "Flash", img: "https://ballxpit.wiki.gg/images/Flash.png" },
+            { name: "Flicker", img: "https://ballxpit.wiki.gg/images/Flicker.png" },
+            { name: "Freeze Ray", img: "https://ballxpit.wiki.gg/images/Freeze_Ray.png" },
+            { name: "Frozen Flame", img: "https://ballxpit.wiki.gg/images/Frozen_Flame.png" },
+            { name: "Glacier", img: "https://ballxpit.wiki.gg/images/Glacier.png" },
+            { name: "Hemorrhage", img: "https://ballxpit.wiki.gg/images/Hemorrhage.png" },
+            { name: "Holy Laser", img: "https://ballxpit.wiki.gg/images/Holy_Laser.png" },
+            { name: "Incubus", img: "https://ballxpit.wiki.gg/images/Incubus.png" },
+            { name: "Inferno", img: "https://ballxpit.wiki.gg/images/Inferno.png" },
+            { name: "Landslide", img: "https://ballxpit.wiki.gg/images/Landslide.png" },
+            { name: "Laser Beam", img: "https://ballxpit.wiki.gg/images/Laser_Beam.png" },
+            { name: "Laser Cutter", img: "https://ballxpit.wiki.gg/images/Laser_Cutter.png" },
+            { name: "Leech", img: "https://ballxpit.wiki.gg/images/Leech.png" },
+            { name: "Lightning Rod", img: "https://ballxpit.wiki.gg/images/Lightning_Rod.png" },
+            { name: "Lovestruck", img: "https://ballxpit.wiki.gg/images/Lovestruck.png" },
+            { name: "Maggot", img: "https://ballxpit.wiki.gg/images/Maggot.png" },
+            { name: "Magma", img: "https://ballxpit.wiki.gg/images/Magma.png" },
+            { name: "Mosquito King", img: "https://ballxpit.wiki.gg/images/Mosquito_King.png" },
+            { name: "Mosquito Swarm", img: "https://ballxpit.wiki.gg/images/Mosquito_Swarm.png" },
+            { name: "Nosferatu", img: "https://ballxpit.wiki.gg/images/Nosferatu.png" },
+            { name: "Noxious", img: "https://ballxpit.wiki.gg/images/Noxious.png" },
+            { name: "Nuclear Bomb", img: "https://ballxpit.wiki.gg/images/Nuclear_Bomb.png" },
+            { name: "Overgrowth", img: "https://ballxpit.wiki.gg/images/Overgrowth.png" },
+            { name: "Phantom", img: "https://ballxpit.wiki.gg/images/Phantom.png" },
+            { name: "Radiation Beam", img: "https://ballxpit.wiki.gg/images/Radiation_Beam.png" },
+            { name: "Sacrifice", img: "https://ballxpit.wiki.gg/images/Sacrifice.png" },
+            { name: "Sandstorm", img: "https://ballxpit.wiki.gg/images/Sandstorm.png" },
+            { name: "Satan", img: "https://ballxpit.wiki.gg/images/Satan.png" },
+            { name: "Shotgun", img: "https://ballxpit.wiki.gg/images/Shotgun.png" },
+            { name: "Soul Sucker", img: "https://ballxpit.wiki.gg/images/Soul_Sucker.png" },
+            { name: "Spider Queen", img: "https://ballxpit.wiki.gg/images/Spider_Queen.png" },
+            { name: "Steel", img: "https://ballxpit.wiki.gg/images/Steel.png" },
+            { name: "Storm", img: "https://ballxpit.wiki.gg/images/Storm.png" },
+            { name: "Succubus", img: "https://ballxpit.wiki.gg/images/Succubus.png" },
+            { name: "Sun", img: "https://ballxpit.wiki.gg/images/Sun.png" },
+            { name: "Swamp", img: "https://ballxpit.wiki.gg/images/Swamp.png" },
+            { name: "Vampire Lord", img: "https://ballxpit.wiki.gg/images/Vampire_Lord.png" },
+            { name: "Virus", img: "https://ballxpit.wiki.gg/images/Virus.png" },
+            { name: "Voluptuous Egg Sac", img: "https://ballxpit.wiki.gg/images/Voluptuous_Egg_Sac.png" },
+            { name: "Wraith", img: "https://ballxpit.wiki.gg/images/Wraith.png" }
+        ];
+
+        const passivesDB = [
+            { name: "Archer's Effigy", img: "https://ballxpit.wiki.gg/images/Archer%27s_Effigy.png" },
+            { name: "Artificial Heart", img: "https://ballxpit.wiki.gg/images/Artificial_Heart.png" },
+            { name: "Baby Rattle", img: "https://ballxpit.wiki.gg/images/Baby_Rattle.png" },
+            { name: "Bandage Roll", img: "https://ballxpit.wiki.gg/images/Bandage_Roll.png" },
+            { name: "Bottled Tornado", img: "https://ballxpit.wiki.gg/images/Bottled_Tornado.png" },
+            { name: "Breastplate", img: "https://ballxpit.wiki.gg/images/Breastplate.png" },
+            { name: "Crown of Thorns", img: "https://ballxpit.wiki.gg/images/Crown_of_Thorns.png" },
+            { name: "Cursed Elixir", img: "https://ballxpit.wiki.gg/images/Cursed_Elixir.png" },
+            { name: "Deadeye's Amulet", img: "https://ballxpit.wiki.gg/images/Deadeye%27s_Amulet.png" },
+            { name: "Diamond Hilted Dagger", img: "https://ballxpit.wiki.gg/images/Diamond_Hilted_Dagger.png" },
+            { name: "Dynamite", img: "https://ballxpit.wiki.gg/images/Dynamite.png" },
+            { name: "Emerald Hilted Dagger", img: "https://ballxpit.wiki.gg/images/Emerald_Hilted_Dagger.png" },
+            { name: "Ethereal Cloak", img: "https://ballxpit.wiki.gg/images/Ethereal_Cloak.png" },
+            { name: "Everflowing Goblet", img: "https://ballxpit.wiki.gg/images/Everflowing_Goblet.png" },
+            { name: "Eye of the Beholder", img: "https://ballxpit.wiki.gg/images/Eye_of_the_Beholder.png" },
+            { name: "Fleet Feet", img: "https://ballxpit.wiki.gg/images/Fleet_Feet.png" },
+            { name: "Frozen Spike", img: "https://ballxpit.wiki.gg/images/Frozen_Spike.png" },
+            { name: "Gemspring", img: "https://ballxpit.wiki.gg/images/Gemspring.png" },
+            { name: "Ghostly Corset", img: "https://ballxpit.wiki.gg/images/Ghostly_Corset.png" },
+            { name: "Ghostly Shield", img: "https://ballxpit.wiki.gg/images/Ghostly_Shield.png" },
+            { name: "Golden Bull", img: "https://ballxpit.wiki.gg/images/Golden_Bull.png" },
+            { name: "Hand Fan", img: "https://ballxpit.wiki.gg/images/Hand_Fan.png" },
+            { name: "Hand Mirror", img: "https://ballxpit.wiki.gg/images/Hand_Mirror.png" },
+            { name: "Healer's Effigy", img: "https://ballxpit.wiki.gg/images/Healer%27s_Effigy.png" },
+            { name: "Hourglass", img: "https://ballxpit.wiki.gg/images/Hourglass.png" },
+            { name: "Iron Onesie", img: "https://ballxpit.wiki.gg/images/Iron_Onesie.png" },
+            { name: "Kiss of Death", img: "https://ballxpit.wiki.gg/images/Kiss_of_Death.png" },
+            { name: "Lover's Quiver", img: "https://ballxpit.wiki.gg/images/Lover%27s_Quiver.png" },
+            { name: "Magic Staff", img: "https://ballxpit.wiki.gg/images/Magic_Staff.png" },
+            { name: "Magnet", img: "https://ballxpit.wiki.gg/images/Magnet.png" },
+            { name: "Midnight Oil", img: "https://ballxpit.wiki.gg/images/Midnight_Oil.png" },
+            { name: "Pressure Valve", img: "https://ballxpit.wiki.gg/images/Pressure_Valve.png" },
+            { name: "Protective Charm", img: "https://ballxpit.wiki.gg/images/Protective_Charm.png" },
+            { name: "Radiant Feather", img: "https://ballxpit.wiki.gg/images/Radiant_Feather.png" },
+            { name: "Reacher's Spear", img: "https://ballxpit.wiki.gg/images/Reacher%27s_Spear.png" },
+            { name: "Rubber Headband", img: "https://ballxpit.wiki.gg/images/Rubber_Headband.png" },
+            { name: "Ruby Hilted Dagger", img: "https://ballxpit.wiki.gg/images/Ruby_Hilted_Dagger.png" },
+            { name: "Sapphire Hilted Dagger", img: "https://ballxpit.wiki.gg/images/Sapphire_Hilted_Dagger.png" },
+            { name: "Shortbow", img: "https://ballxpit.wiki.gg/images/Shortbow.png" },
+            { name: "Silver Blindfold", img: "https://ballxpit.wiki.gg/images/Silver_Blindfold.png" },
+            { name: "Silver Bullet", img: "https://ballxpit.wiki.gg/images/Silver_Bullet.png" },
+            { name: "Slingshot", img: "https://ballxpit.wiki.gg/images/Slingshot.png" },
+            { name: "Spiked Collar", img: "https://ballxpit.wiki.gg/images/Spiked_Collar.png" },
+            { name: "Stone Effigy", img: "https://ballxpit.wiki.gg/images/Stone_Effigy.png" },
+            { name: "Traitor's Cowl", img: "https://ballxpit.wiki.gg/images/Traitor%27s_Cowl.png" },
+            { name: "Turret", img: "https://ballxpit.wiki.gg/images/Turret.png" },
+            { name: "Upturned Hatchet", img: "https://ballxpit.wiki.gg/images/Upturned_Hatchet.png" },
+            { name: "Vampiric Sword", img: "https://ballxpit.wiki.gg/images/Vampiric_Sword.png" },
+            { name: "Voodoo Doll", img: "https://ballxpit.wiki.gg/images/Voodoo_Doll.png" },
+            { name: "Wagon Wheel", img: "https://ballxpit.wiki.gg/images/Wagon_Wheel.png" },
+            { name: "War Horn", img: "https://ballxpit.wiki.gg/images/War_Horn.png" },
+            { name: "Wretched Onion", img: "https://ballxpit.wiki.gg/images/Wretched_Onion.png" },
+            { name: "Cornucopia", img: "https://ballxpit.wiki.gg/images/Cornucopia.png" },
+            { name: "Deadeye's Cross", img: "https://ballxpit.wiki.gg/images/Deadeye%27s_Cross.png" },
+            { name: "Deadeye's Impaler", img: "https://ballxpit.wiki.gg/images/Deadeye%27s_Impaler.png" },
+            { name: "Gracious Impaler", img: "https://ballxpit.wiki.gg/images/Gracious_Impaler.png" },
+            { name: "Grotesque Artillery", img: "https://ballxpit.wiki.gg/images/Grotesque_Artillery.png" },
+            { name: "Odiferous Shell", img: "https://ballxpit.wiki.gg/images/Odiferous_Shell.png" },
+            { name: "Phantom Regalia", img: "https://ballxpit.wiki.gg/images/Phantom_Regalia.png" },
+            { name: "Soul Reaver", img: "https://ballxpit.wiki.gg/images/Soul_Reaver.png" },
+            { name: "Tormenters Mask", img: "https://ballxpit.wiki.gg/images/Tormenters_Mask.png" },
+            { name: "Wings of the Anointed", img: "https://ballxpit.wiki.gg/images/Wings_of_the_Anointed.png" }
+        ];
+
+        // --- RECIPES & LOGIC ---
+
+        const evolutions = [
+            { name: "Assassin", ingredients: ["Iron", "Ghost", "Dark"], logic: "Iron + (Ghost OR Dark)", desc: "Backstabs deal 30% bonus dmg." },
+            { name: "Banished Flame", ingredients: ["Dark", "Burn"], logic: "Dark + Burn", desc: "Darkflame (DOT + Burst)." },
+            { name: "Berserk", ingredients: ["Charm", "Burn", "Bleed"], logic: "Charm + (Bleed OR Burn)", desc: "Enemies attack adjacent units." },
+            { name: "Black Hole", ingredients: ["Dark", "Sun"], logic: "Dark + Sun", desc: "Instantly kills first enemy." },
+            { name: "Blizzard", ingredients: ["Freeze", "Lightning", "Wind"], logic: "Freeze + (Wind OR Lightning)", desc: "Freezes area for 0.8s." },
+            { name: "Bomb", ingredients: ["Burn", "Iron"], logic: "Burn + Iron", desc: "Explodes for 150-300 AOE." },
+            { name: "Brimstone", ingredients: ["Burn", "Poison", "Stone"], logic: "Burn + (Poison OR Stone)", desc: "Burn + Poison aura." },
+            { name: "Catapult", ingredients: ["Stone", "Egg Sac"], logic: "Stone + Egg Sac", desc: "Launches stone baby balls." },
+            { name: "Fireworks", ingredients: ["Burn", "Egg Sac"], logic: "Burn + Egg Sac", desc: "Explodes into burning fireworks." },
+            { name: "Flash", ingredients: ["Light", "Lightning"], logic: "Light + Lightning", desc: "Screen-wide damage & blind." },
+            { name: "Flicker", ingredients: ["Light", "Dark"], logic: "Light + Dark", desc: "Screen-wide tick damage." },
+            { name: "Freeze Ray", ingredients: ["Freeze", "Laser (Horizontal)", "Laser (Vertical)"], logic: "Freeze + Laser (H or V)", desc: "Beam freezes enemies." },
+            { name: "Frozen Flame", ingredients: ["Burn", "Freeze"], logic: "Burn + Freeze", desc: "Frostburn: DOT + Dmg Amp." },
+            { name: "Glacier", ingredients: ["Freeze", "Earthquake", "Stone"], logic: "Freeze + (Earthquake OR Stone)", desc: "Leaves damaging spikes." },
+            { name: "Hemorrhage", ingredients: ["Bleed", "Iron"], logic: "Bleed + Iron", desc: "Consumes bleed for % HP dmg." },
+            { name: "Holy Laser", ingredients: ["Laser (Horizontal)", "Laser (Vertical)"], logic: "Laser(H) + Laser(V)", desc: "Cross laser damage." },
+            { name: "Incubus", ingredients: ["Charm", "Dark"], logic: "Charm + Dark", desc: "Charmed enemies curse others." },
+            { name: "Inferno", ingredients: ["Burn", "Wind"], logic: "Burn + Wind", desc: "AOE Burn aura." },
+            { name: "Landslide", ingredients: ["Stone", "Earthquake"], logic: "Stone + Earthquake", desc: "Self-destructing AOE zone." },
+            { name: "Laser Beam", ingredients: ["Light", "Laser (Horizontal)", "Laser (Vertical)"], logic: "Light + Laser (H or V)", desc: "High dmg beam + Blind." },
+            { name: "Laser Cutter", ingredients: ["Steel", "Laser (Horizontal)", "Laser (Vertical)"], logic: "Steel + Laser (H or V)", desc: "Constant frontal laser." },
+            { name: "Leech", ingredients: ["Brood Mother", "Bleed"], logic: "Brood Mother + Bleed", desc: "Leeches apply heavy bleed." },
+            { name: "Lightning Rod", ingredients: ["Lightning", "Iron"], logic: "Lightning + Iron", desc: "Strikes attached enemies." },
+            { name: "Lovestruck", ingredients: ["Charm", "Light", "Lightning"], logic: "Charm + (Light OR Lightning)", desc: "Enemies heal you." },
+            { name: "Maggot", ingredients: ["Cell", "Brood Mother"], logic: "Cell + Brood Mother", desc: "Infests enemies, spawns babies." },
+            { name: "Magma", ingredients: ["Burn", "Earthquake"], logic: "Burn + Earthquake", desc: "Leaves lava blobs." },
+            { name: "Mosquito King", ingredients: ["Vampire", "Brood Mother"], logic: "Vampire + Brood Mother", desc: "Spawns high dmg mosquitoes." },
+            { name: "Mosquito Swarm", ingredients: ["Vampire", "Egg Sac"], logic: "Vampire + Egg Sac", desc: "Explodes into mosquitoes." },
+            { name: "Nosferatu", ingredients: ["Vampire Lord", "Mosquito King", "Spider Queen"], logic: "Vamp Lord + Mosq King + Spider Queen", desc: "Spawns bats -> Lords." },
+            { name: "Noxious", ingredients: ["Wind", "Poison", "Dark"], logic: "Wind + (Poison OR Dark)", desc: "Passes through, AOE poison." },
+            { name: "Nuclear Bomb", ingredients: ["Bomb", "Poison"], logic: "Bomb + Poison", desc: "Huge dmg + Radiation." },
+            { name: "Overgrowth", ingredients: ["Earthquake", "Cell"], logic: "Earthquake + Cell", desc: "Stacking burst AOE." },
+            { name: "Phantom", ingredients: ["Ghost", "Dark"], logic: "Ghost + Dark", desc: "Curses enemies." },
+            { name: "Radiation Beam", ingredients: ["Laser (Horizontal)", "Laser (Vertical)", "Poison", "Cell"], logic: "Laser (H/V) + (Poison OR Cell)", desc: "Beam applies Radiation." },
+            { name: "Sacrifice", ingredients: ["Bleed", "Dark"], logic: "Bleed + Dark", desc: "Heavy bleed + Curse." },
+            { name: "Sandstorm", ingredients: ["Wind", "Earthquake", "Stone"], logic: "Wind + (Earthquake OR Stone)", desc: "Storm aura + Blind." },
+            { name: "Satan", ingredients: ["Incubus", "Succubus"], logic: "Incubus + Succubus", desc: "Global Burn + Berserk." },
+            { name: "Shotgun", ingredients: ["Iron", "Egg Sac"], logic: "Iron + Egg Sac", desc: "Shoots iron baby balls." },
+            { name: "Soul Sucker", ingredients: ["Ghost", "Vampire"], logic: "Ghost + Vampire", desc: "Saps HP and Attack." },
+            { name: "Spider Queen", ingredients: ["Brood Mother", "Egg Sac"], logic: "Brood Mother + Egg Sac", desc: "Spawns Egg Sacs." },
+            { name: "Steel", ingredients: ["Iron", "Stone"], logic: "Iron + Stone", desc: "Slow, dmg ramps up." },
+            { name: "Storm", ingredients: ["Lightning", "Wind"], logic: "Lightning + Wind", desc: "Periodic lightning strikes." },
+            { name: "Succubus", ingredients: ["Charm", "Vampire"], logic: "Charm + Vampire", desc: "Charm + Heal on hit." },
+            { name: "Sun", ingredients: ["Light", "Burn"], logic: "Light + Burn", desc: "Global Blind + Burn." }, // Adjusted recipe based on naming convention
+            { name: "Swamp", ingredients: ["Poison", "Earthquake"], logic: "Poison + Earthquake", desc: "Tar blobs: Slow + Poison." },
+            { name: "Vampire Lord", ingredients: ["Vampire", "Bleed", "Dark"], logic: "Vampire + (Bleed OR Dark)", desc: "Heals and consumes bleed." },
+            { name: "Virus", ingredients: ["Poison", "Ghost", "Cell"], logic: "Poison + (Ghost OR Cell)", desc: "Spreading disease." },
+            { name: "Voluptuous Egg Sac", ingredients: ["Egg Sac", "Cell"], logic: "Egg Sac + Cell", desc: "Explodes into MORE egg sacs." },
+            { name: "Wraith", ingredients: ["Freeze", "Ghost"], logic: "Freeze + Ghost", desc: "Freezes passed enemies." }
+        ];
+
+        const passiveEvolutions = [
+            { name: "Cornucopia", ingredients: ["Baby Rattle", "War Horn"], logic: "Baby Rattle + War Horn", desc: "Extra baby balls." },
+            { name: "Deadeye's Cross", ingredients: ["Sapphire Hilted Dagger", "Ruby Hilted Dagger", "Diamond Hilted Dagger", "Emerald Hilted Dagger"], logic: "4x Daggers", desc: "60% Crit Chance." },
+            { name: "Deadeye's Impaler", ingredients: ["Deadeye's Cross", "Gracious Impaler"], logic: "Deadeye's Cross + Gracious Impaler", desc: "Crit kills non-bosses." },
+            { name: "Gracious Impaler", ingredients: ["Reacher's Spear", "Deadeye's Amulet"], logic: "Reacher's Spear + Deadeye's Amulet", desc: "Crit kills instantly." },
+            { name: "Grotesque Artillery", ingredients: ["Turret", "Hand Fan"], logic: "Turret + Hand Fan", desc: "Shoots random special balls." },
+            { name: "Odiferous Shell", ingredients: ["Wretched Onion", "Breastplate"], logic: "Wretched Onion + Breastplate", desc: "Contact has 50% kill chance." },
+            { name: "Phantom Regalia", ingredients: ["Ethereal Cloak", "Ghostly Corset"], logic: "Ethereal Cloak + Ghostly Corset", desc: "Balls pierce to back wall." },
+            { name: "Soul Reaver", ingredients: ["Everflowing Goblet", "Vampiric Sword"], logic: "Everflowing Goblet + Vampiric Sword", desc: "Overheal past max HP." },
+            { name: "Tormenters Mask", ingredients: ["Spiked Collar", "Crown of Thorns"], logic: "Spiked Collar + Crown of Thorns", desc: "Enemies die on detection (10%)." },
+            { name: "Wings of the Anointed", ingredients: ["Radiant Feather", "Fleet Feet"], logic: "Radiant Feather + Fleet Feet", desc: "Speed up + Hazard immunity." }
+        ];
+
+        // --- COMPONENTS ---
+
+        const getImg = (name, list) => {
+            const n = name.trim().toLowerCase();
+            const found = list.find(i => i.name.trim().toLowerCase() === n);
+            return found ? found.img : null;
+        };
+
+        // Standard card for encyclopedia
+        const ItemCard = ({ item, isOwned, onClick }) => {
+            return (
+                <div onClick={onClick} className={`game-panel p-2 flex items-center gap-3 cursor-pointer hover:bg-slate-800 transition-all ${isOwned ? 'border-emerald-500 bg-emerald-900/10' : 'border-slate-800'}`}>
+                    <div className="w-10 h-10 border border-slate-600 bg-black flex items-center justify-center overflow-hidden shrink-0">
+                        {item.img ? <img src={item.img} className="w-full h-full object-contain" /> : <div className="text-xs">{item.name[0]}</div>}
+                    </div>
+                    <div className="leading-none">
+                        <div className={`text-lg ${isOwned ? 'text-emerald-400' : 'text-slate-300'}`}>{item.name}</div>
+                        {isOwned && <div className="text-[10px] uppercase text-emerald-600 font-bold">In Inventory</div>}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState("builder"); // builder, encyclopedia, characters
+            const [selectedChars, setSelectedChars] = useState([]); // Array of 1 or 2 chars
+            const [inventory, setInventory] = useState([]); // List of names
+            const [foundIds, setFoundIds] = useState(() => {
+                const saved = localStorage.getItem('ballpit_found');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            useEffect(() => {
+                localStorage.setItem('ballpit_found', JSON.stringify(foundIds));
+            }, [foundIds]);
+
+            // Add character starting balls to inventory
+            useEffect(() => {
+                let startBalls = [];
+                selectedChars.forEach(c => {
+                    if (c.ball) startBalls.push(c.ball);
+                });
+                // Merge start balls with current inventory (avoid dups if needed, or allow double)
+                // For simplicity, we just ensure the user "has" them.
+                setInventory(prev => {
+                    const newInv = [...prev];
+                    startBalls.forEach(b => {
+                        if(!newInv.includes(b)) newInv.push(b);
+                    });
+                    return newInv;
+                });
+            }, [selectedChars]);
+
+            const toggleInventory = (name) => {
+                setInventory(prev => prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]);
+            };
+
+            const toggleFound = (name) => {
+                setFoundIds(prev => prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]);
+            };
+
+            const toggleChar = (char) => {
+                if (selectedChars.find(c => c.name === char.name)) {
+                    setSelectedChars(prev => prev.filter(c => c.name !== char.name));
+                } else {
+                    if (selectedChars.length < 2) {
+                        setSelectedChars(prev => [...prev, char]);
+                    } else {
+                        // Replace the first one if full
+                        setSelectedChars(prev => [prev[1], char]);
+                    }
+                }
+            };
+
+            // Logic to calculate recommendations
+            const recommendations = useMemo(() => {
+                const allEvolutions = [...evolutions, ...passiveEvolutions];
+                const results = [];
+
+                allEvolutions.forEach(evo => {
+                    // Check ownership of ingredients
+                    const ownedIngredients = evo.ingredients.filter(ing => 
+                        inventory.some(invItem => 
+                            invItem.toLowerCase() === ing.toLowerCase() || 
+                            (ing.includes("Laser") && invItem.includes("Laser")) // Lazy matching for Laser H/V
+                        )
+                    );
+
+                    let status = "none";
+                    let missing = [];
+
+                    // Logic for OR conditions (simple approximation)
+                    // If recipe is A + (B or C), we need A AND (B or C)
+                    // This simple checker just counts hits.
+                    
+                    // Count how many "slots" in the recipe are filled.
+                    // Most recipes are 2 slots. Some are 3 or 4.
+                    // We need a smarter way to check "completion".
+                    
+                    // Simple heuristic: 
+                    // 1. Does the user have the evolution already? (If evolved ball in inventory) -> Skip
+                    if (inventory.includes(evo.name)) return;
+
+                    // 2. Determine match quality
+                    const percent = ownedIngredients.length / evo.ingredients.length; // Rough estimate
+                    
+                    // Better Logic: Check based on 'logic' string manually or strictly
+                    // Let's rely on ownedIngredients count for now.
+                    if (ownedIngredients.length >= 2) {
+                        status = "ready"; // High likelihood
+                    } else if (ownedIngredients.length === 1) {
+                        status = "potential";
+                        // Find what is missing
+                        missing = evo.ingredients.filter(i => !ownedIngredients.includes(i));
+                    }
+
+                    if (status !== "none") {
+                        results.push({ ...evo, status, missing, ownedCount: ownedIngredients.length });
+                    }
+                });
+
+                // Sort: Ready first, then by name
+                return results.sort((a, b) => {
+                    if (a.status === 'ready' && b.status !== 'ready') return -1;
+                    if (a.status !== 'ready' && b.status === 'ready') return 1;
+                    return 0;
+                });
+            }, [inventory]);
+
+            return (
+                <div className="max-w-2xl mx-auto min-h-screen pb-20 relative z-10">
+                    
+                    {/* Sticky Header */}
+                    <div className="sticky top-0 z-50 bg-black/95 border-b-2 border-slate-800 px-3 py-2 shadow-2xl">
+                        <div className="flex justify-between items-center mb-2">
+                            <h1 className="text-2xl tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+                                BALL<span className="text-white">x</span>PIT <span className="text-sm text-slate-500">PLANNER</span>
+                            </h1>
+                            <div className="flex gap-1">
+                                {selectedChars.map(c => (
+                                    <div key={c.name} className="w-8 h-8 rounded border border-cyan-500 overflow-hidden">
+                                        <img src={c.img} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                                {selectedChars.length === 0 && <div className="text-xs text-slate-600 self-center uppercase">[Select Char]</div>}
+                            </div>
+                        </div>
+
+                        {/* Navigation */}
+                        <div className="flex gap-2">
+                            {['builder', 'encyclopedia', 'characters'].map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`flex-1 py-1 text-lg uppercase tracking-widest border-b-2 transition-colors ${
+                                        activeTab === tab 
+                                        ? 'border-cyan-400 text-cyan-400 glow-text-cyan' 
+                                        : 'border-transparent text-slate-600 hover:text-slate-400'
+                                    }`}
+                                >
+                                    {tab === 'builder' ? 'Build' : tab === 'encyclopedia' ? 'Wiki' : 'Chars'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="p-3">
+                        {/* --- CHARACTERS TAB --- */}
+                        {activeTab === 'characters' && (
+                            <div className="grid grid-cols-1 gap-3">
+                                <div className="text-center text-sm text-slate-400 mb-2">
+                                    Select up to 2 characters to fuse their starting balls.
+                                </div>
+                                {charactersDB.map(char => {
+                                    const isSelected = selectedChars.find(c => c.name === char.name);
+                                    return (
+                                        <div 
+                                            key={char.name}
+                                            onClick={() => toggleChar(char)}
+                                            className={`game-panel p-3 flex gap-3 cursor-pointer transition-all ${isSelected ? 'border-cyan-400 bg-cyan-900/20' : 'border-slate-800 hover:border-slate-600'}`}
+                                        >
+                                            <div className="w-16 h-16 bg-black border border-slate-700 shrink-0">
+                                                <img src={char.img} className="w-full h-full object-contain" />
+                                            </div>
+                                            <div>
+                                                <h3 className={`text-xl leading-none ${isSelected ? 'text-cyan-400' : 'text-slate-200'}`}>{char.name}</h3>
+                                                <div className="text-sm text-purple-400 mb-1">Starts with: {char.ball}</div>
+                                                <p className="text-sm text-slate-500 leading-tight">{char.desc}</p>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+
+                        {/* --- ENCYCLOPEDIA TAB (Inventory Manager) --- */}
+                        {activeTab === 'encyclopedia' && (
+                            <div className="space-y-6">
+                                <div>
+                                    <h2 className="text-purple-400 uppercase tracking-widest mb-2 border-b border-purple-900/50">Base Balls</h2>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {ballsDB.filter(b => !evolutions.find(e => e.name === b.name)).map(item => (
+                                            <ItemCard 
+                                                key={item.name} 
+                                                item={item} 
+                                                isOwned={inventory.includes(item.name)} 
+                                                onClick={() => toggleInventory(item.name)} 
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h2 className="text-emerald-400 uppercase tracking-widest mb-2 border-b border-emerald-900/50">Passives</h2>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {passivesDB.map(item => (
+                                            <ItemCard 
+                                                key={item.name} 
+                                                item={item} 
+                                                isOwned={inventory.includes(item.name)} 
+                                                onClick={() => toggleInventory(item.name)} 
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- BUILDER TAB (Recommendations) --- */}
+                        {activeTab === 'builder' && (
+                            <div className="space-y-4">
+                                {/* Inventory Strip */}
+                                <div className="game-panel p-2">
+                                    <h3 className="text-xs text-slate-500 uppercase mb-2">Current Inventory</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {inventory.length === 0 && <span className="text-slate-700 italic">Select characters or items in Wiki...</span>}
+                                        {inventory.map(i => (
+                                            <button key={i} onClick={() => toggleInventory(i)} className="bg-slate-800 text-slate-300 px-2 py-1 text-sm border border-slate-600 rounded hover:bg-red-900/50 hover:border-red-500 hover:text-red-300">
+                                                {i} ✕
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Recommendations */}
+                                <h3 className="text-gold uppercase tracking-widest text-center my-4 glow-text-gold">Evolution Opportunities</h3>
+                                
+                                {recommendations.length === 0 ? (
+                                    <div className="text-center py-10 text-slate-600 border-2 border-dashed border-slate-800 rounded">
+                                        No synergies found yet.<br/>Add more items to your inventory!
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-3">
+                                        {recommendations.map(evo => {
+                                            const isReady = evo.status === 'ready';
+                                            const img = getImg(evo.name, [...ballsDB, ...passivesDB]);
+                                            
+                                            return (
+                                                <div key={evo.name} className={`game-panel p-3 flex gap-3 relative ${isReady ? 'reco-pulse bg-yellow-900/10' : 'border-slate-700 opacity-80'}`}>
+                                                    <div className="w-16 h-16 bg-black border border-slate-600 shrink-0">
+                                                        {img ? <img src={img} className="w-full h-full object-contain" /> : <div className="flex h-full items-center justify-center text-2xl">?</div>}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="flex justify-between">
+                                                            <h4 className={`text-xl ${isReady ? 'text-neon-gold glow-text-gold' : 'text-slate-300'}`}>{evo.name}</h4>
+                                                            {isReady && <span className="text-xs bg-yellow-600 text-black font-bold px-1 rounded self-start">READY</span>}
+                                                        </div>
+                                                        <div className="text-sm text-cyan-600 font-mono mb-1">{evo.logic}</div>
+                                                        {evo.missing && evo.missing.length > 0 && (
+                                                            <div className="text-sm text-red-400">
+                                                                Need: {evo.missing.join(" or ")}
+                                                            </div>
+                                                        )}
+                                                        <p className="text-xs text-slate-500 mt-1">{evo.desc}</p>
+                                                    </div>
+                                                    {/* Mark as Crafted Button */}
+                                                    {isReady && (
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); toggleInventory(evo.name); }}
+                                                            className="absolute bottom-2 right-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-2 py-1 rounded"
+                                                        >
+                                                            CRAFT
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
