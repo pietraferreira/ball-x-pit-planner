@@ -29,7 +29,6 @@ export const charactersDB = [
 
 // --- BALLS ---
 export const ballsDB = [
-    { name: "Baby Ball", img: "https://ballxpit.wiki.gg/images/Baby_Ball.png" },
     { name: "Bleed", img: "https://ballxpit.wiki.gg/images/Bleed.png" },
     { name: "Brood Mother", img: "https://ballxpit.wiki.gg/images/Brood_Mother.png" },
     { name: "Burn", img: "https://ballxpit.wiki.gg/images/Burn.png" },
