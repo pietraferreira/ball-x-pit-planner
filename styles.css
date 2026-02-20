@@ -59,3 +59,38 @@ button { touch-action: manipulation; }
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: #000; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+/* New Visual Hierarchy Styles */
+.status-new {
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 8px var(--neon-purple);
+    background: rgba(192, 132, 252, 0.1);
+}
+
+.status-ready {
+    border-color: var(--neon-gold);
+    box-shadow: 0 0 5px var(--neon-gold);
+}
+
+.status-owned {
+    border-color: var(--border-dim);
+    opacity: 0.5;
+    order: 99; /* Push to bottom */
+}
+
+/* Discovery Pulse */
+@keyframes discovery-pulse {
+    0% { box-shadow: 0 0 5px var(--neon-purple); border-color: var(--neon-purple); }
+    50% { box-shadow: 0 0 15px var(--neon-purple); border-color: #e9d5ff; }
+    100% { box-shadow: 0 0 5px var(--neon-purple); border-color: var(--neon-purple); }
+}
+.discovery-glow { animation: discovery-pulse 2s infinite; }
+
+/* Toggle Switch Styles */
+.toggle-checkbox:checked {
+    right: 0;
+    border-color: var(--neon-green);
+}
+.toggle-checkbox:checked + .toggle-label {
+    background-color: var(--neon-green);
+}
