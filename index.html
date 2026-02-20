@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ball x Pit | Pocket Planner</title>
+    <title>Ball x Pit | Pocket Planner v5</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -20,6 +20,7 @@
             --neon-purple: #c084fc;
             --neon-green: #4ade80;
             --neon-gold: #facc15;
+            --neon-red: #f87171;
             --border-dim: #1f2937;
         }
         body { 
@@ -27,7 +28,7 @@
             color: #e2e8f0; 
             font-family: 'VT323', monospace; 
             font-size: 18px;
-            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior-y: none;
         }
         
         .game-panel {
@@ -53,16 +54,14 @@
 
         .glow-text-cyan { text-shadow: 0 0 5px rgba(34, 211, 238, 0.6); }
         .glow-text-gold { text-shadow: 0 0 5px rgba(250, 204, 21, 0.6); }
+        .glow-text-purple { text-shadow: 0 0 5px rgba(192, 132, 252, 0.6); }
 
-        /* Pulse animation for recommended items */
+        .reco-pulse { animation: pulse-border 2s infinite; }
         @keyframes pulse-border {
             0% { border-color: var(--neon-gold); box-shadow: 0 0 5px var(--neon-gold); }
             50% { border-color: #713f12; box-shadow: 0 0 2px var(--neon-gold); }
             100% { border-color: var(--neon-gold); box-shadow: 0 0 5px var(--neon-gold); }
         }
-        .reco-pulse { animation: pulse-border 2s infinite; }
-        
-        /* Mobile Touch Optimizations */
         button { touch-action: manipulation; }
     </style>
 </head>
@@ -73,29 +72,105 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- DATA ---
-        // (Shortened for brevity in chat, but includes ALL previous data in logic)
-        
+        // --- CHARACTER DUOS (From Reddit Analysis) ---
+        const characterDuos = [
+            {
+                name: "The Cluster Bomb",
+                tag: "SCREEN CLEAR",
+                chars: ["The Juggler", "The Spendthrift"],
+                desc: "Throws all balls as one giant cluster (Juggler) that detonates on impact (Spendthrift). Massive burst damage."
+            },
+            {
+                name: "The Backline Shotgun",
+                tag: "AFK FARM",
+                chars: ["The Shade", "The Spendthrift"],
+                desc: "Shots originate from behind enemies in a wide arc. Aim straight down and strafe. Melts waves instantly."
+            },
+            {
+                name: "Infinite Swarm",
+                tag: "LAG MACHINE",
+                chars: ["The Cohabitants", "The Flagellant"],
+                desc: "Maximum baby ball generation. Flagellant keeps balls in play, Cohabitants doubles them. Frame-drop levels of chaos."
+            },
+            {
+                name: "Easy Mode",
+                tag: "BOUNCY",
+                chars: ["The Physicist", "The Repentant"],
+                desc: "Physicist pulls balls down, Repentant adds damage per bounce. Extremely consistent and safe."
+            },
+            {
+                name: "The Hemorrhage",
+                tag: "BOSS KILLER",
+                chars: ["The Warrior", "The Shieldbearer"],
+                desc: "Starts with Bleed + Iron to rush Hemorrhage. Percentage-based damage shreds high HP bosses."
+            },
+            {
+                name: "Piercing Boomerang",
+                tag: "TECH",
+                chars: ["The Repentant", "The Embedded"],
+                desc: "Balls pierce enemies (Embedded) and return from back wall dealing dmg (Repentant). Great for clearing lines."
+            },
+            {
+                name: "Earth Shaker",
+                tag: "AOE",
+                chars: ["The Juggler", "The Makeshift Sisyphus"],
+                desc: "Lob explosive Earthquake balls directly into the center of enemy clusters. Bypasses Sisyphus's downside."
+            }
+        ];
+
+        // --- META ITEM BUILDS ---
+        const metaBuilds = [
+            { 
+                name: "Black Hole Sun", 
+                tag: "GOD TIER",
+                desc: "Sun makes Black Hole apply to EVERYTHING on screen. Instant wipe for non-bosses.",
+                core: ["Black Hole", "Sun"], 
+                support: ["Cornucopia", "Ethereal Cloak"] 
+            },
+            { 
+                name: "Bleed Flash", 
+                tag: "BOSS MELTER",
+                desc: "Hemorrhage cuts % Current HP. Flash spreads it instantly to bosses.", 
+                core: ["Hemorrhage", "Flash"], 
+                support: ["Gemspring", "Silver Bullet"] 
+            },
+            { 
+                name: "Seeker Missiles", 
+                tag: "SYNERGY",
+                desc: "Mosquito Swarm x Nuclear Bomb turns nukes into homing missiles.", 
+                core: ["Mosquito Swarm", "Nuclear Bomb"], 
+                support: ["Maggot", "Midnight Oil"] 
+            },
+            { 
+                name: "Immortal Turtle", 
+                tag: "SURVIVAL",
+                desc: "Succubus + Spider Queen generates infinite weak balls. Charmed enemies heal you forever.", 
+                core: ["Succubus", "Spider Queen"], 
+                support: ["Soul Reaver", "Phantom Regalia"] 
+            }
+        ];
+
+        // --- DATA LIBRARIES ---
         const charactersDB = [
-            { name: "The Warrior", ball: "Bleed", img: "https://ballxpit.wiki.gg/images/The_Warrior.png" },
-            { name: "The Itchy Finger", ball: "Burn", img: "https://ballxpit.wiki.gg/images/The_Itchy_Finger.png" },
-            { name: "The Repentant", ball: "Freeze", img: "https://ballxpit.wiki.gg/images/The_Repentant.png" },
-            { name: "The Cohabitants", ball: "Brood Mother", img: "https://ballxpit.wiki.gg/images/The_Cohabitants.png" },
-            { name: "The Cogitator", ball: "Laser (Vertical)", img: "https://ballxpit.wiki.gg/images/The_Cogitator.png" },
-            { name: "The Embedded", ball: "Poison", img: "https://ballxpit.wiki.gg/images/The_Embedded.png" },
-            { name: "The Shade", ball: "Dark", img: "https://ballxpit.wiki.gg/images/The_Shade.png" },
-            { name: "The Shieldbearer", ball: "Iron", img: "https://ballxpit.wiki.gg/images/The_Shieldbearer.png" },
-            { name: "The Spendthrift", ball: "Vampire", img: "https://ballxpit.wiki.gg/images/The_Spendthrift.png" },
-            { name: "The Juggler", ball: "Lightning", img: "https://ballxpit.wiki.gg/images/The_Juggler.png" },
-            { name: "The Empty Nester", ball: "Ghost", img: "https://ballxpit.wiki.gg/images/The_Empty_Nester.png" },
-            { name: "The Flagellant", ball: "Egg Sac", img: "https://ballxpit.wiki.gg/images/The_Flagellant.png" },
-            { name: "The Makeshift Sisyphus", ball: "Earthquake", img: "https://ballxpit.wiki.gg/images/The_Makeshift_Sisyphus.png" },
-            { name: "The Physicist", ball: "Light", img: "https://ballxpit.wiki.gg/images/The_Physicist.png" },
-            { name: "The Tactician", ball: "Iron", img: "https://ballxpit.wiki.gg/images/The_Tactician.png" },
-            { name: "The Radical", ball: "Wind", img: "https://ballxpit.wiki.gg/images/The_Radical.png" },
-            { name: "The Falconer", ball: "Lightning", img: "https://ballxpit.wiki.gg/images/The_Falconer.png" },
-            { name: "The Carouser", ball: "Charm", img: "https://ballxpit.wiki.gg/images/The_Carouser.png" },
-            { name: "The False Messiah", ball: "Bleed", img: "https://ballxpit.wiki.gg/images/The_False_Messiah.png" }
+            { name: "The Warrior", ball: "Bleed", img: "https://ballxpit.wiki.gg/images/The_Warrior.png", desc: "No special quirks." },
+            { name: "The Itchy Finger", ball: "Burn", img: "https://ballxpit.wiki.gg/images/The_Itchy_Finger.png", desc: "Shoots twice as fast, scattered aim." },
+            { name: "The Repentant", ball: "Freeze", img: "https://ballxpit.wiki.gg/images/The_Repentant.png", desc: "Balls deal more dmg on bounce, hurt enemies on return." },
+            { name: "The Cohabitants", ball: "Brood Mother", img: "https://ballxpit.wiki.gg/images/The_Cohabitants.png", desc: "Launches mirror copy of every ball." },
+            { name: "The Cogitator", ball: "Laser (Vertical)", img: "https://ballxpit.wiki.gg/images/The_Cogitator.png", desc: "Automatically chooses upgrades." },
+            { name: "The Embedded", ball: "Poison", img: "https://ballxpit.wiki.gg/images/The_Embedded.png", desc: "Balls pierce enemies until hitting a wall." },
+            { name: "The Shade", ball: "Dark", img: "https://ballxpit.wiki.gg/images/The_Shade.png", desc: "Balls shoot from the back. +10% Crit." },
+            { name: "The Shieldbearer", ball: "Iron", img: "https://ballxpit.wiki.gg/images/The_Shieldbearer.png", desc: "Holds a shield that bounces balls back." },
+            { name: "The Spendthrift", ball: "Vampire", img: "https://ballxpit.wiki.gg/images/The_Spendthrift.png", desc: "Shoots all balls at same time in arc." },
+            { name: "The Juggler", ball: "Lightning", img: "https://ballxpit.wiki.gg/images/The_Juggler.png", desc: "Lobs balls into the air." },
+            { name: "The Empty Nester", ball: "Ghost", img: "https://ballxpit.wiki.gg/images/The_Empty_Nester.png", desc: "No baby balls. Shoots multiple instances of special ball." },
+            { name: "The Flagellant", ball: "Egg Sac", img: "https://ballxpit.wiki.gg/images/The_Flagellant.png", desc: "Balls bounce normally off bottom." },
+            { name: "The Makeshift Sisyphus", ball: "Earthquake", img: "https://ballxpit.wiki.gg/images/The_Makeshift_Sisyphus.png", desc: "No direct hit dmg. 4x AOE/Status dmg." },
+            { name: "The Physicist", ball: "Light", img: "https://ballxpit.wiki.gg/images/The_Physicist.png", desc: "Balls affected by gravity towards back." },
+            { name: "The Tactician", ball: "Iron", img: "https://ballxpit.wiki.gg/images/The_Tactician.png", desc: "Battles become turn-based." },
+            { name: "The Radical", ball: "Wind", img: "https://ballxpit.wiki.gg/images/The_Radical.png", desc: "Plays automatically." },
+            { name: "The Falconer", ball: "Lightning", img: "https://ballxpit.wiki.gg/images/The_Falconer.png", desc: "Balls shot from falcons on sides." },
+            { name: "The Carouser", ball: "Charm", img: "https://ballxpit.wiki.gg/images/The_Carouser.png", desc: "Balls orbit on return." },
+            { name: "The False Messiah", ball: "Bleed", img: "https://ballxpit.wiki.gg/images/The_False_Messiah.png", desc: "Twitch Integration character." }
         ];
 
         const ballsDB = [
@@ -300,14 +375,6 @@
             { name: "Wings of the Anointed", ingredients: ["Radiant Feather", "Fleet Feet"], logic: "Radiant Feather + Fleet Feet", desc: "Speed up + Hazard immunity." }
         ];
 
-        // --- META BUILDS ---
-        const metaBuilds = [
-            { name: "The Immortal", desc: "Massive healing via Leech & Vampirism", items: ["Vampire", "Bleed", "Brood Mother", "Everflowing Goblet", "Vampiric Sword"] },
-            { name: "Screen Wipe", desc: "Hit everything at once", items: ["Light", "Lightning", "Laser (Horizontal)", "Laser (Vertical)", "Magic Staff"] },
-            { name: "Critical God", desc: "Insta-kill potential", items: ["Iron", "Ghost", "Reacher's Spear", "Deadeye's Amulet", "Diamond Hilted Dagger"] },
-            { name: "Zoo Keeper", desc: "Spawn minions everywhere", items: ["Brood Mother", "Egg Sac", "Vampire", "Cornucopia", "Artificial Heart"] }
-        ];
-
         // --- COMPONENTS ---
 
         const getImg = (name, list) => {
@@ -316,11 +383,12 @@
             return found ? found.img : null;
         };
 
-        const ItemCard = ({ item, isOwned, onClick }) => {
+        const ItemCard = ({ item, isOwned, onClick, isSTier }) => {
             return (
                 <div onClick={onClick} className={`game-panel p-2 flex items-center gap-3 cursor-pointer transition-all ${isOwned ? 'border-emerald-500 bg-emerald-900/20' : 'border-slate-800 opacity-90'}`}>
-                    <div className="w-10 h-10 border border-slate-600 bg-black flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-10 h-10 border border-slate-600 bg-black flex items-center justify-center overflow-hidden shrink-0 relative">
                         {item.img ? <img src={item.img} className="w-full h-full object-contain" /> : <div className="text-xs">{item.name[0]}</div>}
+                        {isSTier && <div className="absolute top-0 right-0 bg-red-600 text-[8px] px-1 font-bold">S</div>}
                     </div>
                     <div className="leading-none min-w-0">
                         <div className={`text-lg truncate ${isOwned ? 'text-emerald-400' : 'text-slate-300'}`}>{item.name}</div>
@@ -332,11 +400,11 @@
 
         const App = () => {
             const [activeTab, setActiveTab] = useState("builder");
+            const [metaSubTab, setMetaSubTab] = useState("duos");
             const [selectedChars, setSelectedChars] = useState([]); 
             const [inventory, setInventory] = useState([]); 
             const [searchTerm, setSearchTerm] = useState("");
 
-            // Add char ball to inventory logic
             useEffect(() => {
                 let startBalls = selectedChars.map(c => c.ball).filter(Boolean);
                 setInventory(prev => {
@@ -359,22 +427,26 @@
                 }
             };
 
-            const applyMetaBuild = (buildItems) => {
-                // Keep character balls, replace rest
+            const applyMetaBuild = (build) => {
                 const charBalls = selectedChars.map(c => c.ball).filter(Boolean);
-                // Unique items
-                const newInv = [...new Set([...charBalls, ...buildItems])];
+                const allItems = [...build.core, ...build.support];
+                const newInv = [...new Set([...charBalls, ...allItems])];
                 setInventory(newInv);
                 setActiveTab('builder');
             };
 
-            // Recommendation Logic
+            const applyDuo = (duo) => {
+                const charObjs = duo.chars.map(name => charactersDB.find(c => c.name === name)).filter(Boolean);
+                setSelectedChars(charObjs);
+                setActiveTab('builder');
+            }
+
             const recommendations = useMemo(() => {
                 const allEvolutions = [...evolutions, ...passiveEvolutions];
                 const results = [];
 
                 allEvolutions.forEach(evo => {
-                    if (inventory.includes(evo.name)) return; // Already have result
+                    if (inventory.includes(evo.name)) return; 
 
                     const ownedIngredients = evo.ingredients.filter(ing => 
                         inventory.some(invItem => 
@@ -405,7 +477,6 @@
                 });
             }, [inventory]);
 
-            // Filtering for Wiki Tab
             const filteredBalls = ballsDB.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
             const filteredPassives = passivesDB.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -418,9 +489,7 @@
                             <h1 className="text-2xl tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
                                 BALL<span className="text-white">x</span>PIT
                             </h1>
-                            
-                            {/* Selected Chars Mini View */}
-                            <div className="flex gap-1" onClick={() => setActiveTab('characters')}>
+                            <div className="flex gap-1" onClick={() => setActiveTab('chars')}>
                                 {selectedChars.map(c => (
                                     <div key={c.name} className="w-8 h-8 rounded border border-cyan-500 overflow-hidden">
                                         <img src={c.img} className="w-full h-full object-cover" />
@@ -430,7 +499,6 @@
                             </div>
                         </div>
 
-                        {/* Navigation */}
                         <div className="flex gap-2">
                             {['builder', 'wiki', 'chars', 'meta'].map(tab => (
                                 <button
@@ -480,7 +548,7 @@
                             </div>
                         )}
 
-                        {/* --- WIKI TAB (Searchable Inventory) --- */}
+                        {/* --- WIKI TAB --- */}
                         {activeTab === 'wiki' && (
                             <div className="space-y-4">
                                 <input 
@@ -496,7 +564,13 @@
                                         <h2 className="text-purple-400 text-sm uppercase tracking-widest mb-2 border-b border-purple-900/50">Balls & Evolutions</h2>
                                         <div className="grid grid-cols-2 gap-2">
                                             {filteredBalls.map(item => (
-                                                <ItemCard key={item.name} item={item} isOwned={inventory.includes(item.name)} onClick={() => toggleInventory(item.name)} />
+                                                <ItemCard 
+                                                    key={item.name} 
+                                                    item={item} 
+                                                    isOwned={inventory.includes(item.name)} 
+                                                    onClick={() => toggleInventory(item.name)} 
+                                                    isSTier={sTierItems.includes(item.name)}
+                                                />
                                             ))}
                                         </div>
                                     </div>
@@ -515,10 +589,9 @@
                             </div>
                         )}
 
-                        {/* --- BUILDER TAB (Recommendations) --- */}
+                        {/* --- BUILDER TAB --- */}
                         {activeTab === 'builder' && (
                             <div className="space-y-4">
-                                {/* Inventory Strip */}
                                 <div className="game-panel p-2 relative">
                                     <div className="flex justify-between items-center mb-2">
                                         <h3 className="text-xs text-slate-500 uppercase">Run Inventory ({inventory.length})</h3>
@@ -534,7 +607,6 @@
                                     </div>
                                 </div>
 
-                                {/* Recommendations */}
                                 <div className="flex items-center gap-2 my-4">
                                     <div className="h-px bg-slate-800 flex-1"></div>
                                     <h3 className="text-neon-gold uppercase tracking-widest text-center glow-text-gold">Next Steps</h3>
@@ -549,16 +621,20 @@
                                     <div className="grid gap-3 pb-10">
                                         {recommendations.map(evo => {
                                             const isReady = evo.status === 'ready';
+                                            const isSTier = sTierItems.includes(evo.name);
                                             const img = getImg(evo.name, [...ballsDB, ...passivesDB]);
                                             
                                             return (
                                                 <div key={evo.name} className={`game-panel p-3 flex gap-3 relative transition-all ${isReady ? 'reco-pulse bg-yellow-900/10 order-first' : 'border-slate-800 opacity-75'}`}>
-                                                    <div className="w-14 h-14 bg-black border border-slate-600 shrink-0">
+                                                    <div className="w-14 h-14 bg-black border border-slate-600 shrink-0 relative">
                                                         {img ? <img src={img} className="w-full h-full object-contain" /> : <div className="flex h-full items-center justify-center text-xl">?</div>}
+                                                        {isSTier && <div className="absolute top-0 right-0 bg-red-600 text-[8px] px-1 font-bold">S</div>}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start">
-                                                            <h4 className={`text-lg leading-none ${isReady ? 'text-neon-gold glow-text-gold' : 'text-slate-300'}`}>{evo.name}</h4>
+                                                            <h4 className={`text-lg leading-none ${isReady ? 'text-neon-gold glow-text-gold' : 'text-slate-300'}`}>
+                                                                {evo.name} {isSTier && <span className="text-red-500 text-xs">🔥</span>}
+                                                            </h4>
                                                             {isReady && <span className="text-[10px] bg-yellow-600 text-black font-bold px-1 rounded animate-pulse">CRAFT NOW</span>}
                                                         </div>
                                                         <div className="text-xs text-cyan-600 font-mono my-1 truncate">{evo.logic}</div>
@@ -570,7 +646,6 @@
                                                         )}
                                                         <p className="text-xs text-slate-500 leading-tight">{evo.desc}</p>
                                                     </div>
-                                                    {/* Mark as Crafted Button overlay */}
                                                     {isReady && (
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); toggleInventory(evo.name); }}
@@ -587,30 +662,59 @@
                             </div>
                         )}
 
-                        {/* --- META TAB (God Builds) --- */}
+                        {/* --- META TAB --- */}
                         {activeTab === 'meta' && (
                             <div className="space-y-4">
-                                <h2 className="text-center text-slate-400 text-sm italic">Tap a build to equip required items</h2>
-                                {metaBuilds.map((build, idx) => (
-                                    <div 
-                                        key={idx} 
-                                        onClick={() => applyMetaBuild(build.items)}
-                                        className="game-panel p-3 cursor-pointer hover:bg-slate-800 group"
-                                    >
-                                        <div className="flex justify-between items-center mb-1">
-                                            <h3 className="text-xl text-purple-400 group-hover:glow-text-purple transition-all">{build.name}</h3>
-                                            <span className="text-[10px] bg-slate-700 px-1 rounded">LOAD</span>
-                                        </div>
-                                        <p className="text-xs text-slate-400 mb-2">{build.desc}</p>
-                                        <div className="flex flex-wrap gap-1">
-                                            {build.items.map(i => (
-                                                <span key={i} className={`text-[10px] px-1 rounded border ${inventory.includes(i) ? 'bg-emerald-900/30 border-emerald-600 text-emerald-400' : 'bg-black border-slate-700 text-slate-600'}`}>
-                                                    {i}
-                                                </span>
-                                            ))}
-                                        </div>
+                                <div className="flex gap-2 mb-4 bg-slate-900 p-1 rounded">
+                                    <button onClick={()=>setMetaSubTab('duos')} className={`flex-1 py-1 rounded text-sm ${metaSubTab==='duos' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>🛡️ DUOS</button>
+                                    <button onClick={()=>setMetaSubTab('builds')} className={`flex-1 py-1 rounded text-sm ${metaSubTab==='builds' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>⚔️ BUILDS</button>
+                                </div>
+
+                                {metaSubTab === 'duos' && (
+                                    <div className="grid gap-3">
+                                        {characterDuos.map((duo, idx) => (
+                                            <div key={idx} onClick={() => applyDuo(duo)} className="game-panel p-3 cursor-pointer hover:bg-slate-800">
+                                                <div className="flex justify-between mb-2">
+                                                    <h3 className="text-lg text-purple-400">{duo.name}</h3>
+                                                    <span className="text-xs bg-slate-700 px-1 rounded h-fit">{duo.tag}</span>
+                                                </div>
+                                                <div className="flex items-center gap-4 mb-3">
+                                                    <div className="flex gap-1">
+                                                        {duo.chars.map(c => (
+                                                            <div key={c} className="w-10 h-10 border border-slate-600 bg-black overflow-hidden">
+                                                                <img src={charactersDB.find(x => x.name === c).img} className="w-full h-full object-cover" />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-500 italic leading-tight">{duo.desc}</div>
+                                                </div>
+                                                <button className="w-full bg-cyan-900/40 border border-cyan-700 text-cyan-400 text-xs py-1 hover:bg-cyan-900/60">LOAD DUO</button>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
+
+                                {metaSubTab === 'builds' && (
+                                    <div className="grid gap-3">
+                                        {metaBuilds.map((build, idx) => (
+                                            <div key={idx} onClick={() => applyMetaBuild(build)} className="game-panel p-3 cursor-pointer hover:bg-slate-800 group">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-lg text-emerald-400 group-hover:glow-text-cyan transition-all">{build.name}</h3>
+                                                        <span className="text-[10px] bg-slate-700 px-1 rounded uppercase">{build.tag}</span>
+                                                    </div>
+                                                    <span className="text-[10px] bg-emerald-700 px-1 rounded">LOAD</span>
+                                                </div>
+                                                <p className="text-xs text-slate-400 mb-2">{build.desc}</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {build.core.map(i => (
+                                                        <span key={i} className={`text-[10px] px-1 rounded border ${inventory.includes(i) ? 'bg-emerald-900/30 border-emerald-600 text-emerald-400' : 'bg-black border-red-900 text-red-300'}`}>{i}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
 
