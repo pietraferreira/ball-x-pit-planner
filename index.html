@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ball x Pit | Pocket Planner v5.2</title>
+    <title>Ball x Pit | Pocket Planner v5.3</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -79,7 +79,13 @@
             const [inventory, setInventory] = useState([]); 
             const [searchTerm, setSearchTerm] = useState("");
             
-            // --- ALL DATA IS NOW INSIDE THE APP COMPONENT TO PREVENT ERRORS ---
+            // FIXED: Re-added the missing state for tracking discovered items
+            const [foundIds, setFoundIds] = useState(() => {
+                const saved = localStorage.getItem('ballpit_found');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            // --- DATA LIBRARIES ---
 
             const sTierItems = [
                 "Sun", "Magma", "Hemorrhage", "Overgrowth", "Maggot", 
@@ -401,6 +407,10 @@
 
             const toggleInventory = (name) => {
                 setInventory(prev => prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]);
+            };
+
+            const toggleFound = (name) => {
+                setFoundIds(prev => prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]);
             };
 
             const toggleChar = (char) => {
