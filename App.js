@@ -7,40 +7,52 @@ const { useState, useEffect, useMemo } = React;
 
 // --- HELPERS ---
 const getImg = (name, list) => {
-    // Check for "Fused" items
     if (name.startsWith("Fused:")) return null; 
     const n = name.trim().toLowerCase();
     const found = list.find(i => i.name.trim().toLowerCase() === n);
     return found ? found.img : null;
 };
 
-// --- COMPONENT: ITEM CARD ---
-const ItemCard = ({ item, isFound, isInRun, onToggleFound, onToggleRun }) => {
+// --- COMPONENT: QUICK ADD MODAL ---
+const QuickAddModal = ({ onClose, onAdd }) => {
+    const [tab, setTab] = useState("base"); // base, passive, evolved
+
+    // Filter Logic
+    const baseBallsList = useMemo(() => ballsDB.filter(b => !evolutions.find(e => e.name === b.name)), []);
+    const evolvedBallsList = useMemo(() => ballsDB.filter(b => evolutions.find(e => e.name === b.name)), []);
+    
+    const currentList = tab === 'base' ? baseBallsList : tab === 'passive' ? passivesDB : evolvedBallsList;
+
     return (
-        <div 
-            className={`game-panel p-2 flex items-center gap-2 transition-all relative group
-            ${isInRun ? 'border-l-4 border-l-cyan-400 bg-cyan-900/20' : 'border-slate-800'}
-            ${!isFound ? 'opacity-80 grayscale-[0.5]' : ''}`}
-        >
-            <div className="flex-1 flex items-center gap-3 cursor-pointer" onClick={onToggleRun}>
-                <div className="w-10 h-10 border border-slate-600 bg-black flex items-center justify-center overflow-hidden shrink-0 relative">
-                    {item.img ? <img src={item.img} className="w-full h-full object-contain" /> : <div className="text-xs">{item.name[0]}</div>}
-                    {!isFound && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] text-slate-400">???</div>}
-                </div>
-                <div className="leading-none min-w-0">
-                    <div className={`text-lg truncate ${isInRun ? 'text-cyan-400' : isFound ? 'text-slate-300' : 'text-slate-600'}`}>
-                        {item.name}
-                    </div>
-                    {isInRun && <div className="text-[10px] text-cyan-500 font-bold tracking-widest">ACTIVE RUN</div>}
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col p-4 animate-in fade-in duration-200">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                <h2 className="text-xl text-white tracking-widest">QUICK ADD</h2>
+                <button onClick={onClose} className="text-2xl text-slate-400 p-2">✕</button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-2 mb-4">
+                <button onClick={() => setTab('base')} className={`flex-1 py-3 text-lg font-bold rounded border ${tab === 'base' ? 'bg-cyan-600/30 border-cyan-400 text-cyan-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>BALLS</button>
+                <button onClick={() => setTab('passive')} className={`flex-1 py-3 text-lg font-bold rounded border ${tab === 'passive' ? 'bg-emerald-600/30 border-emerald-400 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>PASSIVE</button>
+                <button onClick={() => setTab('evolved')} className={`flex-1 py-3 text-lg font-bold rounded border ${tab === 'evolved' ? 'bg-purple-600/30 border-purple-400 text-purple-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>EVO</button>
+            </div>
+
+            {/* Grid */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-4 gap-3 pb-10">
+                    {currentList.map(item => (
+                        <button 
+                            key={item.name}
+                            onClick={() => { onAdd(item.name); onClose(); }}
+                            className="aspect-square bg-slate-900 border border-slate-700 rounded-lg flex flex-col items-center justify-center p-1 active:scale-95 active:border-white transition-all"
+                        >
+                            <img src={item.img} className="w-full h-full object-contain pointer-events-none" />
+                        </button>
+                    ))}
                 </div>
             </div>
-            <button 
-                onClick={(e) => { e.stopPropagation(); onToggleFound(); }}
-                className={`w-8 h-8 flex items-center justify-center rounded border transition-colors
-                ${isFound ? 'border-emerald-600 bg-emerald-900/30 text-emerald-400' : 'border-slate-700 text-slate-600 hover:border-slate-500'}`}
-            >
-                {isFound ? '📖' : '🔒'}
-            </button>
+            <div className="text-center text-xs text-slate-500 mt-2 uppercase tracking-widest">Tap icon to add & close</div>
         </div>
     );
 };
@@ -89,12 +101,44 @@ const RecoCard = ({ evo, isReady, isNewDiscovery, missing, onCraft }) => {
     );
 };
 
+// --- COMPONENT: ITEM CARD (Wiki) ---
+const ItemCard = ({ item, isFound, isInRun, onToggleFound, onToggleRun }) => {
+    return (
+        <div 
+            className={`game-panel p-2 flex items-center gap-2 transition-all relative group
+            ${isInRun ? 'border-l-4 border-l-cyan-400 bg-cyan-900/20' : 'border-slate-800'}
+            ${!isFound ? 'opacity-80 grayscale-[0.5]' : ''}`}
+        >
+            <div className="flex-1 flex items-center gap-3 cursor-pointer" onClick={onToggleRun}>
+                <div className="w-10 h-10 border border-slate-600 bg-black flex items-center justify-center overflow-hidden shrink-0 relative">
+                    {item.img ? <img src={item.img} className="w-full h-full object-contain" /> : <div className="text-xs">{item.name[0]}</div>}
+                    {!isFound && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] text-slate-400">???</div>}
+                </div>
+                <div className="leading-none min-w-0">
+                    <div className={`text-lg truncate ${isInRun ? 'text-cyan-400' : isFound ? 'text-slate-300' : 'text-slate-600'}`}>
+                        {item.name}
+                    </div>
+                    {isInRun && <div className="text-[10px] text-cyan-500 font-bold tracking-widest">ACTIVE RUN</div>}
+                </div>
+            </div>
+            <button 
+                onClick={(e) => { e.stopPropagation(); onToggleFound(); }}
+                className={`w-8 h-8 flex items-center justify-center rounded border transition-colors
+                ${isFound ? 'border-emerald-600 bg-emerald-900/30 text-emerald-400' : 'border-slate-700 text-slate-600 hover:border-slate-500'}`}
+            >
+                {isFound ? '📖' : '🔒'}
+            </button>
+        </div>
+    );
+};
+
 const App = () => {
     const [activeTab, setActiveTab] = useState("builder");
     const [metaSubTab, setMetaSubTab] = useState("duos");
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedChars, setSelectedChars] = useState([]);
-    const [fusionSelection, setFusionSelection] = useState([]); // Array of indices from activeRun
+    const [fusionSelection, setFusionSelection] = useState([]); 
+    const [showQuickAdd, setShowQuickAdd] = useState(false); // NEW STATE
 
     // --- STATE MANAGEMENT ---
     const [foundIds, setFoundIds] = useState(() => {
@@ -116,28 +160,21 @@ const App = () => {
         setFoundIds(prev => prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]);
     };
 
-    // Wiki Click: Just adds a copy (doesn't consume anything because it's "finding" an item)
     const addToRun = (name) => {
         if (!foundIds.includes(name)) toggleFound(name);
         setActiveRun(prev => [...prev, name]);
     };
 
-    // Remove specific item by Index (to handle duplicates correctly)
     const removeFromRun = (index) => {
         setActiveRun(prev => prev.filter((_, i) => i !== index));
-        // Clear fusion selection if that item was selected
         if (fusionSelection.includes(index)) {
             setFusionSelection(prev => prev.filter(i => i !== index));
         }
     };
 
-    // The Logic Engine: Crafting consumes items
     const craftEvolution = (evo) => {
         let newRun = [...activeRun];
         let ingredientsNeeded = [...evo.ingredients];
-        
-        // Find indices of ingredients in current run
-        // We prioritize exact matches, then laser variations
         let indicesToRemove = [];
         let canCraft = true;
 
@@ -147,52 +184,36 @@ const App = () => {
                     item === ing || (ing.includes("Laser") && item.includes("Laser"))
                 )
             );
-            
-            if (index !== -1) {
-                indicesToRemove.push(index);
-            } else {
-                canCraft = false;
-            }
+            if (index !== -1) indicesToRemove.push(index);
+            else canCraft = false;
         });
 
         if (canCraft) {
-            // Remove ingredients (filter out by index)
             newRun = newRun.filter((_, idx) => !indicesToRemove.includes(idx));
-            // Add result
             newRun.push(evo.name);
-            // Mark as found
             if (!foundIds.includes(evo.name)) toggleFound(evo.name);
-            
             setActiveRun(newRun);
-            setFusionSelection([]); // Reset fusion
+            setFusionSelection([]); 
         } else {
-            alert("Missing ingredients! (Logic Check Failed)");
+            alert("Missing ingredients!");
         }
     };
 
-    // Manual Fusion Logic
     const toggleFusionSelect = (index) => {
         if (fusionSelection.includes(index)) {
             setFusionSelection(prev => prev.filter(i => i !== index));
         } else {
-            if (fusionSelection.length < 2) {
-                setFusionSelection(prev => [...prev, index]);
-            }
+            if (fusionSelection.length < 2) setFusionSelection(prev => [...prev, index]);
         }
     };
 
     const fuseItems = () => {
         if (fusionSelection.length !== 2) return;
-        
         const item1 = activeRun[fusionSelection[0]];
         const item2 = activeRun[fusionSelection[1]];
         const fusedName = `Fused: ${item1} x ${item2}`;
-
-        // Remove ingredients
         let newRun = activeRun.filter((_, idx) => !fusionSelection.includes(idx));
-        // Add fused item
         newRun.push(fusedName);
-        
         setActiveRun(newRun);
         setFusionSelection([]);
     };
@@ -211,24 +232,22 @@ const App = () => {
             else newChars = [newChars[1], char];
         }
         setSelectedChars(newChars);
-        
-        // Add starting balls (Don't clear run, just append)
         if (char.ball) setActiveRun(prev => [...prev, char.ball]);
     };
 
     const applyMetaBuild = (build) => {
         const items = [...build.core, ...build.support];
-        setActiveRun(items); // Replaces run for meta build setup
+        setActiveRun(items); 
         setActiveTab('builder');
     };
 
-    // --- RECOMMENDATIONS (Updated for Multiple Copies) ---
+    // --- LOGIC ---
+
     const recommendations = useMemo(() => {
         const allEvolutions = [...evolutions, ...passiveEvolutions];
         const results = [];
 
         allEvolutions.forEach(evo => {
-            // Count how many of each ingredient we have available
             let availableRun = [...activeRun]; 
             let foundCount = 0;
 
@@ -238,7 +257,7 @@ const App = () => {
                 );
                 if (idx !== -1) {
                     foundCount++;
-                    availableRun.splice(idx, 1); // "Consume" for checking
+                    availableRun.splice(idx, 1);
                 }
             });
 
@@ -249,7 +268,6 @@ const App = () => {
                 status = "ready";
             } else if (foundCount >= 1) {
                 status = "potential";
-                // Simple missing check (not perfect for duplicate ingredients but good enough)
                 missing = evo.ingredients.filter(ing => !activeRun.includes(ing)); 
             }
 
@@ -277,6 +295,11 @@ const App = () => {
     return (
         <div className="max-w-xl mx-auto min-h-screen pb-24 relative z-10">
             
+            {/* QUICK ADD MODAL */}
+            {showQuickAdd && (
+                <QuickAddModal onClose={() => setShowQuickAdd(false)} onAdd={addToRun} />
+            )}
+
             {/* Header */}
             <div className="sticky top-0 z-50 bg-black/95 border-b-2 border-slate-800 px-3 py-2 shadow-2xl">
                 <div className="flex justify-between items-center mb-2">
@@ -343,10 +366,7 @@ const App = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
-                        <div className="text-center text-[10px] text-slate-500 uppercase tracking-widest mb-2">
-                            TAP = ADD TO RUN &nbsp;|&nbsp; 📖 = MARK FOUND
-                        </div>
-
+                        
                         {filteredBalls.length > 0 && (
                             <div>
                                 <h2 className="text-purple-400 text-sm uppercase tracking-widest mb-2 border-b border-purple-900/50">Balls</h2>
@@ -355,7 +375,7 @@ const App = () => {
                                         <ItemCard 
                                             key={item.name} item={item} 
                                             isFound={foundIds.includes(item.name)}
-                                            isInRun={false} // Wiki tab just shows DB
+                                            isInRun={activeRun.includes(item.name)}
                                             onToggleFound={() => toggleFound(item.name)}
                                             onToggleRun={() => addToRun(item.name)}
                                         />
@@ -372,7 +392,7 @@ const App = () => {
                                         <ItemCard 
                                             key={item.name} item={item} 
                                             isFound={foundIds.includes(item.name)}
-                                            isInRun={false}
+                                            isInRun={activeRun.includes(item.name)}
                                             onToggleFound={() => toggleFound(item.name)}
                                             onToggleRun={() => addToRun(item.name)}
                                         />
@@ -383,7 +403,7 @@ const App = () => {
                     </div>
                 )}
 
-                {/* --- BUILDER TAB (Active Run & Fusion) --- */}
+                {/* --- BUILDER TAB --- */}
                 {activeTab === 'builder' && (
                     <div className="space-y-4">
                         
@@ -401,7 +421,7 @@ const App = () => {
                             </div>
                             
                             <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
-                                {activeRun.length === 0 && <span className="text-slate-600 text-sm italic p-2">Select items in Wiki or Chars...</span>}
+                                {activeRun.length === 0 && <span className="text-slate-600 text-sm italic p-2">Use Quick Add (+)</span>}
                                 {activeRun.map((item, idx) => {
                                     const isSelected = fusionSelection.includes(idx);
                                     return (
@@ -424,22 +444,13 @@ const App = () => {
                                     );
                                 })}
                             </div>
-                            <div className="text-[10px] text-slate-500 mt-2 text-center">
-                                Select 2 items to Fuse • Click × to delete
-                            </div>
                         </div>
 
-                        {/* Recommendations */}
-                        <div className="flex items-center gap-2 my-4">
-                            <div className="h-px bg-slate-800 flex-1"></div>
-                            <h3 className="text-neon-gold uppercase tracking-widest text-center glow-text-gold">Recipes</h3>
-                            <div className="h-px bg-slate-800 flex-1"></div>
-                        </div>
-                        
+                        {/* Recommendation List */}
                         {recommendations.length === 0 ? (
                             <div className="text-center py-10 border-2 border-dashed border-slate-800 rounded">
-                                <p className="text-slate-500 mb-2">No recipes available with current items.</p>
-                                <button onClick={() => setActiveTab('wiki')} className="text-cyan-400 underline">Add items from Wiki</button>
+                                <p className="text-slate-500 mb-2">Ready to draft?</p>
+                                <button onClick={() => setShowQuickAdd(true)} className="text-cyan-400 underline">Add Items</button>
                             </div>
                         ) : (
                             <div className="flex flex-col gap-3 pb-20">
@@ -455,6 +466,14 @@ const App = () => {
                                 ))}
                             </div>
                         )}
+                        
+                        {/* FLOATING ACTION BUTTON (Speed Draft) */}
+                        <button 
+                            onClick={() => setShowQuickAdd(true)}
+                            className="fixed bottom-6 right-6 w-16 h-16 bg-cyan-500 text-black rounded-full shadow-[0_0_20px_rgba(34,211,238,0.5)] flex items-center justify-center text-4xl font-bold active:scale-95 transition-transform z-50 border-4 border-black"
+                        >
+                            +
+                        </button>
                     </div>
                 )}
 
